@@ -1,102 +1,89 @@
 import random
+from typing import Tuple, Dict, Any
+from models import Observation, Action
+
 
 class SupportOpsEnv:
     def __init__(self):
-        self.tasks = [
-            {
-                "id": "easy",
-                "text": "My order has not arrived",
-                "type": "classification",
-                "expected": {
-                    "category": "delivery",
-                    "priority": "high"
-                }
-            },
-            {
-                "id": "medium",
-                "text": "I want a refund, it's delayed",
-                "type": "response",
-                "expected_keywords": ["sorry", "refund", "delay"]
-            },
-            {
-                "id": "hard",
-                "text": "I was charged twice and I am angry",
-                "type": "resolution",
-                "expected_keywords": ["refund", "escalate", "double charge"]
-            }
-        ]
-
+        self.tasks = ["classification", "response", "resolution"]
         self.current_task = None
         self.step_count = 0
+        self.max_steps = 5
+        self.done = False
+        self.state_data = {}
 
-    def reset(self):
+    def reset(self) -> Observation:
         self.current_task = random.choice(self.tasks)
         self.step_count = 0
+        self.done = False
 
-        return {
-            "task_id": self.current_task["id"],
-            "input_text": self.current_task["text"],
-            "step_count": self.step_count
-        }
+        if self.current_task == "classification":
+            self.state_data = {
+                "email": "My order hasn't arrived after 10 days"
+            }
 
-    def step(self, action):
-        self.step_count += 1
-        text = action["content"]["text"].lower()
+        elif self.current_task == "response":
+            self.state_data = {
+                "ticket": "Customer upset about delayed shipment"
+            }
 
-        score = 0.0
+        else:
+            self.state_data = {
+                "issue": "User cannot login",
+                "progress": []
+            }
 
-        #  EASY TASK (classification)
-        if self.current_task["type"] == "classification":
-            if "delivery" in text:
-                score += 0.5
-            if "high" in text:
-                score += 0.5
+        return self.state()
 
-        #  MEDIUM TASK (response)
-        elif self.current_task["type"] == "response":
-            if "sorry" in text:
-                score += 0.3
-            if "refund" in text:
-                score += 0.4
-            if "delay" in text or "late" in text:
-                score += 0.3
-
-        #  HARD TASK (resolution)
-        elif self.current_task["type"] == "resolution":
-            if "refund" in text:
-                score += 0.4
-            if "escalate" in text:
-                score += 0.3
-            if "double" in text or "twice" in text:
-                score += 0.3
-
-        #  penalty for too many steps
-        if self.step_count > 3:
-            score -= 0.1
-
-        # clamp score
-        score = round(max(0.0, min(score, 1.0)), 2)
-
-        done = score >= 0.9 or self.step_count >= 5
-
-        reward = {
-            "value": score,
-            "feedback": "graded based on keywords"
-        }
-
-        return (
-            {
-                "task_id": self.current_task["id"],
-                "input_text": self.current_task["text"],
-                "step_count": self.step_count
-            },
-            reward,
-            done,
-            {}
+    def state(self) -> Observation:
+        return Observation(
+            task_type=self.current_task,
+            content=self.state_data,
+            step_count=self.step_count
         )
 
-    def state(self):
-        return {
-            "task": self.current_task,
-            "steps": self.step_count
-        }
+    def step(self, action: Action) -> Tuple[Observation, float, bool, Dict[str, Any]]:
+        if self.done:
+            return self.state(), 0.0, True, {}
+
+        self.step_count += 1
+        reward = 0.0
+
+        # EASY
+        if self.current_task == "classification":
+            label = action.payload.get("label", "").lower()
+            if "order" in label or "shipping" in label:
+                reward = 1.0
+                self.done = True
+            else:
+                reward = 0.3
+
+        # MEDIUM
+        elif self.current_task == "response":
+            text = action.payload.get("response", "").lower()
+            if "sorry" in text:
+                reward += 0.4
+            if "delay" in text:
+                reward += 0.3
+            if "help" in text or "assist" in text:
+                reward += 0.3
+            self.done = True
+
+        # HARD
+        else:
+            step = action.payload.get("step", "").lower()
+            self.state_data["progress"].append(step)
+
+            if "verify" in step:
+                reward += 0.3
+            if "reset password" in step:
+                reward += 0.4
+            if "login success" in step:
+                reward += 0.3
+                self.done = True
+
+        # penalty
+        reward -= 0.05 * self.step_count
+        reward = max(0.0, min(1.0, reward))
+
+        return self.state(), reward, self.done, {}

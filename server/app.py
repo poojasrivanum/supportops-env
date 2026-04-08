@@ -19,6 +19,12 @@ def step(action: dict):
 @app.get("/state")
 def state():
     return client.state()
+@app.get("/")
+def root():
+    return {
+        "status": "SupportOpsEnv running",
+        "message": "Use /reset, /step, /state endpoints"
+    }
 
 def main():
     import uvicorn

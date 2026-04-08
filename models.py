@@ -1,15 +1,18 @@
 from pydantic import BaseModel
-from typing import Dict
+from typing import Dict, Any
+
 
 class Observation(BaseModel):
-    task_id: str
-    input_text: str
+    task_type: str
+    content: Dict[str, Any]
     step_count: int
+
 
 class Action(BaseModel):
     action_type: str
-    content: Dict[str, str]
+    payload: Dict[str, Any]
+
 
 class Reward(BaseModel):
-    value: float
-    feedback: str
+    score: float
+    reason: str
