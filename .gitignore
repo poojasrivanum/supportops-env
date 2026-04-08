@@ -2,8 +2,13 @@
 __pycache__/
 *.pyc
 
-# Environment variables
+# Virtual environments
+venv/
+.venv/
+
+# Environment variables / secrets
 .env
+*.env
 
 # VS Code
 .vscode/
@@ -15,8 +20,14 @@ Thumbs.db
 # Logs
 *.log
 
-# Secrets
-*.env
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
-# Hugging Face / tokens
+# Testing / cache
+.pytest_cache/
+.coverage
+
+# Tokens
 hf_token.txt
