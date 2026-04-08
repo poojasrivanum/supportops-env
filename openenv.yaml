@@ -1,0 +1,13 @@
+name: supportops-env
+version: 0.1.0
+description: Customer support simulation environment
+
+tasks:
+  - id: easy
+    difficulty: easy
+  - id: medium
+    difficulty: medium
+  - id: hard
+    difficulty: hard
+
+reward_range: [0.0, 1.0]

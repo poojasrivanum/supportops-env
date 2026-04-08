@@ -1,0 +1,16 @@
+[project]
+name = "supportops-env"
+version = "0.1.0"
+description = "Customer support simulation environment for OpenEnv"
+authors = [{name = "Pooja"}]
+dependencies = [
+    "openenv-core",
+    "openai",
+    "pydantic"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+[project.scripts]
+server = "server.app:main"
