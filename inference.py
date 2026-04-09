@@ -1,19 +1,19 @@
 import os
 import json
-import re
 from openai import OpenAI
 from env import SupportOpsEnv
 from models import Action
 
-# --- Setup ---
-api_base = os.getenv("API_BASE_URL")
-api_key = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
+# ✅ SAFE ENV HANDLING
+api_base = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+api_key = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or "dummy"
 
 client = OpenAI(
     base_url=api_base,
     api_key=api_key
 )
 
+# ✅ SAFE MODEL
 MODEL = os.getenv("MODEL_NAME") or "llama-3.1-8b-instant"
 
 env = SupportOpsEnv()
@@ -24,64 +24,40 @@ step_id = 0
 
 print("[START]")
 
-
-# --- Helper: Extract JSON safely ---
-def extract_json(text):
-    try:
-        return json.loads(text)
-    except:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-        raise ValueError("No valid JSON found")
-
-
 while True:
     prompt = f"""
-You are a customer support agent.
+    You are a customer support agent.
 
-Task: {obs.task_type}
-Content: {obs.content}
+    Task: {obs.task_type}
+    Content: {obs.content}
 
-Return ONLY valid JSON. No explanation, no markdown.
+    Return JSON ONLY:
+    {{
+        "action_type": "...",
+        "payload": {{}}
+    }}
+    """
 
-Format:
-{{
-    "action_type": "...",
-    "payload": {{}}
-}}
-"""
-
+    # ✅ ALWAYS initialize text
     text = ""
 
-    # --- Safe API Call ---
+    # ✅ SAFE API CALL
     try:
         response = client.chat.completions.create(
             model=MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0
         )
-
-        if not response or not response.choices:
-            raise ValueError("Empty response")
-
         text = response.choices[0].message.content.strip()
 
     except Exception as e:
-        print(f"[API ERROR] {e}")
-        text = ""
+        print(f"API ERROR: {e}")
 
-    # --- Safe Parsing ---
+    # ✅ SAFE PARSE
     try:
-        parsed = extract_json(text)
+        parsed = json.loads(text)
 
-        if "action_type" not in parsed or "payload" not in parsed:
-            raise ValueError("Invalid response format")
-
-    except Exception as e:
-        print(f"[PARSE ERROR] Raw output: {text}")
-
-        # --- Fallbacks ---
+    except Exception:
         if obs.task_type == "classification":
             parsed = {
                 "action_type": "classify",
@@ -91,7 +67,7 @@ Format:
         elif obs.task_type == "response":
             parsed = {
                 "action_type": "respond",
-                "payload": {"response": "Sorry for the inconvenience."}
+                "payload": {"response": "Sorry for the delay, we will help you"}
             }
 
         else:
@@ -101,23 +77,36 @@ Format:
                 "payload": {"step": steps[min(step_id, 2)]}
             }
 
-    # --- Execute Action ---
+    # ✅ SAFE ACTION CREATION
     try:
         action = Action(**parsed)
+    except Exception:
+        action = Action(
+            action_type="respond",
+            payload={"response": "Fallback response"}
+        )
+
+    # ✅ STEP EXECUTION (SAFE)
+    try:
         obs, reward, done, _ = env.step(action)
 
+        # handle reward dict or float
+        if isinstance(reward, dict):
+            r = reward.get("value", 0.5)
+        else:
+            r = reward
+
+        total_reward += float(r)
+
     except Exception as e:
-        print(f"[ENV ERROR] {e}")
+        print(f"STEP ERROR: {e}")
         break
 
-    total_reward += reward
-
-    print(f"[STEP] {step_id} | TASK: {obs.task_type} | REWARD: {reward}")
+    print(f"[STEP] {step_id} | OBS: {obs.task_type} | REWARD: {r}")
 
     step_id += 1
 
     if done or step_id >= 5:
         break
 
-
-print(f"[END] TOTAL_REWARD: {total_reward}")
+print(f"[END] TOTAL_REWARD: {round(total_reward, 2)}")
