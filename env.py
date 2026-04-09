@@ -44,16 +44,16 @@ class SupportOpsEnv:
 
     def step(self, action: Action) -> Tuple[Observation, float, bool, Dict[str, Any]]:
         if self.done:
-            return self.state(), 0.0, True, {}
+            return self.state(), 0, True, {}
 
         self.step_count += 1
-        reward = 0.0
+        reward = 0
 
         # EASY
         if self.current_task == "classification":
             label = action.payload.get("label", "").lower()
             if "order" in label or "shipping" in label:
-                reward = 1.0
+                reward = 1
                 self.done = True
             else:
                 reward = 0.3
