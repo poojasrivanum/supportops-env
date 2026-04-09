@@ -4,10 +4,12 @@ from openai import OpenAI
 from env import SupportOpsEnv
 from models import Action
 
-# ✅ MUST USE THESE (NOT HF_TOKEN)
+api_base = os.getenv("API_BASE_URL")
+api_key = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
+
 client = OpenAI(
-    base_url=os.environ["API_BASE_URL"],
-    api_key=os.environ["API_KEY"]
+    base_url=api_base,
+    api_key=api_key
 )
 
 MODEL = os.environ["MODEL_NAME"]
