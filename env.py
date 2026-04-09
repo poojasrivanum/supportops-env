@@ -83,7 +83,7 @@ class SupportOpsEnv:
                 self.done = True
 
         # penalty
-        reward -= 0.05 * self.step_count
-        reward = max(0.0, min(1.0, reward))
+        reward -= 0.03 * self.step_count
+        reward = max(0.05, min(0.95, reward))
 
         return self.state(), reward, self.done, {}
