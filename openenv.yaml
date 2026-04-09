@@ -1,2 +1,9 @@
 name: supportops-env
 entrypoint: env.py
+tasks:
+  - name: classification
+    grader: env.grader_classification
+  - name: response
+    grader: env.grader_response
+  - name: resolution
+    grader: env.grader_resolution
