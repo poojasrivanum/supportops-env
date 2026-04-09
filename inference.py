@@ -12,7 +12,7 @@ client = OpenAI(
     api_key=api_key
 )
 
-MODEL = os.environ["MODEL_NAME"]
+MODEL = os.getenv("MODEL_NAME") or "llama-3.1-8b-instant"
 
 env = SupportOpsEnv()
 obs = env.reset()
